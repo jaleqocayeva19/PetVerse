@@ -330,14 +330,14 @@
       }
 
       function initMap() {
-        map = L.map("map", { scrollWheelZoom: true }).setView(BAKU, 12);
-        L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-          maxZoom: 19,
-          attribution: "&copy; OpenStreetMap &copy; CARTO",
-        }).addTo(map);
-        renderMarkers();
-        requestAnimationFrame(() => map.invalidateSize());
-      }
+  map = L.map("map", { scrollWheelZoom: true }).setView(BAKU, 12);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap &copy; CARTO",
+  }).addTo(map);
+  renderMarkers();
+  requestAnimationFrame(() => map.invalidateSize());
+}
 
       function setActiveFilter(button) {
         document.querySelectorAll(".filter-btn").forEach((btn) => {
