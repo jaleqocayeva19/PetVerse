@@ -205,7 +205,7 @@
           <div class="max-w-[88%] self-start">
             <div class="mb-1 text-[11px] font-semibold text-slate-500">AI Vet Advisor</div>
             <div class="rounded-2xl rounded-bl-sm border border-teal-300 bg-teal-100 px-3 py-2.5 text-sm leading-relaxed text-teal-950">
-              Hello. Tell me your pet’s species, age, and symptoms. I will estimate urgency, share immediate care steps, and suggest the right veterinary specialist.
+              Hello. Tell me your pet's species, age, and symptoms. I will estimate urgency, share immediate care steps, and suggest the right veterinary specialist.
             </div>
           </div>
         </div>
@@ -245,14 +245,11 @@
     ></script>
     <script>
       const BAKU = [40.4093, 49.8671];
-      const GEMINI_MODELS = ["gemini-2.0-flash"];
-      const API_KEY = "AQ.Ab8RN6IPmXifGiye3tdYznlKmint_p4xbjCDq_jffLgaX7w3_A";
 
-      function geminiGenerateUrl(model) {
-        return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(API_KEY)}`;
-      }
-      const SYSTEM_PROMPT =
-        "You are a professional veterinary assistant. Analyze the pet symptoms provided by the user, provide immediate emergency advice, estimate the urgency level, and specify which type of specialist veterinarian they should consult. Keep answers concise and helpful.";
+      // ARTIQ API AÇARI BURADA YOXDUR.
+      // Sorğular öz backend-imizdəki /api/chat endpoint-inə göndərilir,
+      // açar isə serverdə .env faylında gizli qalır.
+      const CHAT_ENDPOINT = "/api/chat";
 
       const spots = [
         { name: "Caspian Vet Clinic", category: "Veterinary", address: "Nizami Street 32, Baku", rating: 4.8, lat: 40.3779, lng: 49.8531 },
@@ -489,57 +486,25 @@
         return { root: wrap, body: wrap.querySelector("div:last-child") };
       }
 
-      function extractText(data) {
-        const parts = data?.candidates?.[0]?.content?.parts || [];
-        return parts.map((part) => part.text || "").join("");
-      }
-
-      function parseGeminiError(raw, status) {
-        try {
-          const msg = JSON.parse(raw).error?.message;
-          if (msg) return msg;
-        } catch {
-          /* fall through */
-        }
-        if (status === 404) return "That Gemini model is not available on this API key.";
-        if (status === 400 || status === 403) {
-          return "The API key looks invalid or is missing Gemini access. Check it in Google AI Studio.";
-        }
-        return `Gemini request failed (${status}).`;
-      }
-
+      // Artıq Gemini-yə birbaşa deyil, öz backend-imizə müraciət edirik.
       async function generateGeminiReply() {
-        let lastError = "Gemini request failed.";
-        const payload = JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: conversation,
-          generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
+        const response = await fetch(CHAT_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversation }),
         });
 
-        for (let i = 0; i < GEMINI_MODELS.length; i++) {
-          const model = GEMINI_MODELS[i];
-          const response = await fetch(geminiGenerateUrl(model), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: payload,
-          });
+        const data = await response.json().catch(() => ({}));
 
-          if (!response.ok) {
-            lastError = parseGeminiError(await response.text(), response.status);
-            const canFallback =
-              i < GEMINI_MODELS.length - 1 &&
-              (response.status === 400 || response.status === 404);
-            if (canFallback) continue;
-            throw new Error(lastError);
-          }
-
-          const data = await response.json();
-          const full = extractText(data).trim();
-          if (full) return full;
-          lastError = "The model returned an empty reply. Try again.";
+        if (!response.ok) {
+          throw new Error(data.error || `Sorğu uğursuz oldu (${response.status})`);
         }
 
-        throw new Error(lastError);
+        if (!data.reply) {
+          throw new Error("Model boş cavab qaytardı.");
+        }
+
+        return data.reply;
       }
 
       vetForm.addEventListener("submit", async (event) => {
