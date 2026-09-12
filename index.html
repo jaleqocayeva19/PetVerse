@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PetVerse — Baku Pet Services</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              vet: {
+                50: "#f0fdfa",
+                500: "#14b8a6",
+                600: "#0f766e",
+                800: "#115e59",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+      #map {
+        height: 520px;
+        width: 100%;
+        z-index: 0;
+      }
+      .spot-pin {
+        background: none;
+        border: none;
+      }
+      .spot-pin span {
+        display: block;
+        width: 16px;
+        height: 16px;
+        border: 3px solid #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.25);
+      }
+      .leaflet-popup-content-wrapper {
+        border-radius: 12px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .vet-spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid #99f6e4;
+        border-top-color: #0f766e;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-teal-50 via-slate-50 to-sky-100 text-teal-900 font-sans">
+    <header class="sticky top-0 z-[2000] border-b border-teal-200/80 bg-white/90 backdrop-blur-md">
+      <nav class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <a href="#map-section" class="flex items-center gap-2 text-xl font-extrabold tracking-tight text-teal-700">
+          <span class="grid h-9 w-9 place-items-center rounded-xl bg-teal-600 text-lg text-white shadow-lg shadow-teal-600/30">🐾</span>
+          PetVerse
+        </a>
+        <div class="hidden items-center gap-6 md:flex">
+          <a href="#map-section" class="text-sm font-semibold text-teal-900 hover:text-teal-600">Map</a>
+          <a href="#ai-vet" id="nav-ai-vet" class="text-sm font-semibold text-teal-900 hover:text-teal-600">AI Vet Advisor</a>
+          <a href="#sitters" class="text-sm font-semibold text-teal-900 hover:text-teal-600">Pet-Sitters</a>
+        </div>
+        <button
+          type="button"
+          id="open-register"
+          class="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-teal-700/25 transition hover:bg-teal-800"
+        >
+          Register New Spot
+        </button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="map-section" class="mx-auto max-w-6xl px-4 pb-4 pt-8 sm:px-6">
+        <div class="mb-6 max-w-3xl">
+          <p class="text-xs font-bold uppercase tracking-[0.16em] text-teal-600">Baku pet services</p>
+          <h1 class="mt-2 text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl">
+            Find vets, pharmacies, grooming, and supplies on the map.
+          </h1>
+          <p class="mt-3 max-w-2xl text-slate-600">
+            Filter spots, register a new location, or book a verified sitter. For symptoms, open AI Vet Advisor.
+          </p>
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-teal-200 bg-white shadow-2xl shadow-teal-700/15">
+          <div class="flex flex-wrap justify-center gap-2 border-b border-teal-100 bg-white/95 p-3" role="toolbar" aria-label="Spot categories">
+            <button type="button" class="filter-btn rounded-full bg-teal-700 px-3.5 py-1.5 text-sm font-semibold text-white" data-category="All">
+              All
+            </button>
+            <button type="button" class="filter-btn rounded-full bg-teal-50 px-3.5 py-1.5 text-sm font-semibold text-teal-900 hover:bg-teal-700 hover:text-white" data-category="Veterinary">
+              Veterinary
+            </button>
+            <button type="button" class="filter-btn rounded-full bg-teal-50 px-3.5 py-1.5 text-sm font-semibold text-teal-900 hover:bg-teal-700 hover:text-white" data-category="24/7 Pharmacy">
+              24/7 Pharmacy
+            </button>
+            <button type="button" class="filter-btn rounded-full bg-teal-50 px-3.5 py-1.5 text-sm font-semibold text-teal-900 hover:bg-teal-700 hover:text-white" data-category="Grooming">
+              Grooming
+            </button>
+            <button type="button" class="filter-btn rounded-full bg-teal-50 px-3.5 py-1.5 text-sm font-semibold text-teal-900 hover:bg-teal-700 hover:text-white" data-category="Pet Supplies">
+              Pet Supplies
+            </button>
+          </div>
+          <div id="map" aria-label="Interactive map of pet services in Baku"></div>
+        </div>
+      </section>
+
+      <section id="sitters" class="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <div class="mb-6">
+          <h2 class="text-2xl font-extrabold text-slate-900">Pet-Sitters</h2>
+          <p class="mt-1 text-slate-600">Trusted sitters in Baku with verified profiles and daily rates.</p>
+        </div>
+        <div class="grid gap-5 md:grid-cols-3">
+          <article class="sitter-card rounded-2xl border border-teal-200 bg-white p-5 shadow-lg shadow-teal-700/10">
+            <div class="mb-4 grid h-36 place-items-center rounded-xl bg-gradient-to-br from-teal-700 to-teal-400 text-3xl font-extrabold text-white">LN</div>
+            <h3 class="text-lg font-bold">Leyla Nasirova</h3>
+            <p class="text-sm font-bold text-teal-700">Verified sitter</p>
+            <p class="mt-2 font-bold">₼35 / day</p>
+            <p class="mb-4 text-amber-500" aria-label="4.9 stars">★★★★★ <span class="text-sm text-slate-500">4.9</span></p>
+            <button type="button" class="btn-book w-full rounded-xl bg-teal-700 py-2.5 font-bold text-white hover:bg-teal-800">Book Sitter</button>
+          </article>
+          <article class="sitter-card rounded-2xl border border-teal-200 bg-white p-5 shadow-lg shadow-teal-700/10">
+            <div class="mb-4 grid h-36 place-items-center rounded-xl bg-gradient-to-br from-sky-700 to-sky-400 text-3xl font-extrabold text-white">RM</div>
+            <h3 class="text-lg font-bold">Rashad Mammadov</h3>
+            <p class="text-sm font-bold text-teal-700">Verified sitter</p>
+            <p class="mt-2 font-bold">₼40 / day</p>
+            <p class="mb-4 text-amber-500" aria-label="4.8 stars">★★★★★ <span class="text-sm text-slate-500">4.8</span></p>
+            <button type="button" class="btn-book w-full rounded-xl bg-teal-700 py-2.5 font-bold text-white hover:bg-teal-800">Book Sitter</button>
+          </article>
+          <article class="sitter-card rounded-2xl border border-teal-200 bg-white p-5 shadow-lg shadow-teal-700/10">
+            <div class="mb-4 grid h-36 place-items-center rounded-xl bg-gradient-to-br from-violet-700 to-fuchsia-500 text-3xl font-extrabold text-white">AG</div>
+            <h3 class="text-lg font-bold">Aygun Guliyeva</h3>
+            <p class="text-sm font-bold text-teal-700">Verified sitter</p>
+            <p class="mt-2 font-bold">₼32 / day</p>
+            <p class="mb-4 text-amber-500" aria-label="5.0 stars">★★★★★ <span class="text-sm text-slate-500">5.0</span></p>
+            <button type="button" class="btn-book w-full rounded-xl bg-teal-700 py-2.5 font-bold text-white hover:bg-teal-800">Book Sitter</button>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="px-4 pb-28 pt-4 text-center text-sm text-slate-500">
+      PetVerse is a demo directory. AI advice is not a substitute for in-person veterinary care.
+    </footer>
+
+    <dialog id="register-modal" class="w-[min(440px,calc(100%-32px))] rounded-2xl border-0 p-0 shadow-2xl backdrop:bg-slate-900/45">
+      <form id="register-form" method="dialog" class="flex flex-col gap-3 p-6">
+        <h2 class="text-xl font-extrabold">Register New Spot</h2>
+        <label class="flex flex-col gap-1.5 text-sm font-semibold">
+          Name
+          <input class="rounded-xl border border-slate-300 px-3 py-2 font-normal" type="text" name="name" required placeholder="Paws &amp; Care Clinic" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm font-semibold">
+          Category
+          <select class="rounded-xl border border-slate-300 px-3 py-2 font-normal" name="category" required>
+            <option value="Veterinary">Veterinary</option>
+            <option value="24/7 Pharmacy">24/7 Pharmacy</option>
+            <option value="Grooming">Grooming</option>
+            <option value="Pet Supplies">Pet Supplies</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm font-semibold">
+          Address
+          <input class="rounded-xl border border-slate-300 px-3 py-2 font-normal" type="text" name="address" required placeholder="Nizami Street 45, Baku" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm font-semibold">
+          Star rating
+          <input class="rounded-xl border border-slate-300 px-3 py-2 font-normal" type="number" name="rating" min="1" max="5" step="0.1" value="4.5" required />
+        </label>
+        <p id="register-error" class="hidden text-sm text-red-800"></p>
+        <div class="mt-1 flex justify-end gap-2">
+          <button type="button" id="close-register" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold">Cancel</button>
+          <button type="submit" class="rounded-xl bg-teal-700 px-4 py-2.5 font-bold text-white hover:bg-teal-800">Add to map</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="pointer-events-none fixed bottom-7 left-1/2 z-[3000] hidden -translate-x-1/2 rounded-full bg-teal-900 px-4 py-2.5 font-semibold text-white shadow-xl"></div>
+
+    <div id="vet-widget" class="fixed bottom-6 right-6 z-[2500] flex flex-col items-end gap-3">
+      <section id="vet-panel" class="hidden h-[min(560px,calc(100vh-120px))] w-[min(380px,calc(100vw-32px))] flex-col overflow-hidden rounded-2xl border border-teal-200 bg-white shadow-2xl shadow-teal-700/25" hidden>
+        <header class="bg-gradient-to-r from-teal-700 to-sky-500 px-4 py-3.5 text-white">
+          <h2 class="text-base font-bold">AI Vet Advisor</h2>
+          <p class="mt-0.5 text-xs text-white/90">Describe symptoms for guidance</p>
+        </header>
+
+        <div class="flex flex-col gap-1 border-b border-slate-200 bg-slate-50 px-3 py-2">
+          <label for="gemini-api-key" class="text-[11px] font-semibold text-slate-500">Gemini API key</label>
+          <input
+            type="password"
+            id="gemini-api-key"
+            autocomplete="off"
+            placeholder="Paste your Google AI Studio key"
+            class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+          />
+        </div>
+
+        <div id="vet-messages" class="flex flex-1 flex-col gap-2.5 overflow-y-auto bg-slate-50 p-3" role="log" aria-live="polite">
+          <div class="max-w-[88%] self-start">
+            <div class="mb-1 text-[11px] font-semibold text-slate-500">AI Vet Advisor</div>
+            <div class="rounded-2xl rounded-bl-sm border border-teal-300 bg-teal-100 px-3 py-2.5 text-sm leading-relaxed text-teal-950">
+              Hello. Tell me your pet’s species, age, and symptoms. I will estimate urgency, share immediate care steps, and suggest the right veterinary specialist.
+            </div>
+          </div>
+        </div>
+
+        <form id="vet-form" class="flex gap-2 border-t border-slate-200 bg-white p-2.5">
+          <label class="sr-only" for="vet-input">Describe pet symptoms</label>
+          <textarea
+            id="vet-input"
+            rows="2"
+            required
+            placeholder="e.g. 3-year-old cat vomiting, lethargic, not eating…"
+            class="flex-1 resize-none rounded-xl border border-slate-300 px-2.5 py-2 text-sm"
+          ></textarea>
+          <button type="submit" id="vet-send" class="rounded-xl bg-teal-700 px-4 font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60">
+            Send
+          </button>
+        </form>
+      </section>
+
+      <button
+        type="button"
+        id="vet-toggle"
+        class="grid h-16 w-16 place-items-center rounded-full bg-teal-700 text-2xl text-white shadow-2xl shadow-teal-700/40 transition hover:scale-105 hover:bg-teal-800"
+        aria-label="Open AI Vet Advisor"
+        aria-expanded="false"
+        aria-controls="vet-panel"
+      >
+        <span id="vet-toggle-icon" aria-hidden="true">🐾</span>
+        <span id="vet-toggle-close" class="hidden text-xl" aria-hidden="true">✕</span>
+      </button>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script>
+      const BAKU = [40.4093, 49.8671];
+      const GEMINI_ENDPOINT =
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=";
+      const SYSTEM_PROMPT =
+        "You are a professional veterinary assistant. Analyze the pet symptoms provided by the user, provide immediate emergency advice, estimate the urgency level, and specify which type of specialist veterinarian they should consult. Keep answers concise and helpful.";
+
+      const spots = [
+        { name: "Caspian Vet Clinic", category: "Veterinary", address: "Nizami Street 32, Baku", rating: 4.8, lat: 40.3779, lng: 49.8531 },
+        { name: "Sabail Animal Hospital", category: "Veterinary", address: "Neftchilar Avenue 18, Icherisheher", rating: 4.6, lat: 40.3661, lng: 49.8372 },
+        { name: "Fountain Square Pet Pharmacy", category: "24/7 Pharmacy", address: "Nizami Street 5, Fountain Square", rating: 4.7, lat: 40.3708, lng: 49.8389 },
+        { name: "Narimanov Night Pharmacy", category: "24/7 Pharmacy", address: "Tbilisi Avenue 12, Narimanov", rating: 4.5, lat: 40.4098, lng: 49.8704 },
+        { name: "Port Baku Grooming Studio", category: "Grooming", address: "Neftchilar Avenue 153, Port Baku", rating: 4.9, lat: 40.3756, lng: 49.8598 },
+        { name: "Old City Paws Spa", category: "Grooming", address: "Asaf Zeynalli Street 8, Icherisheher", rating: 4.4, lat: 40.3654, lng: 49.8351 },
+        { name: "Ganjlik Mall Pet Supplies", category: "Pet Supplies", address: "F. Amirov Street 1, Ganjlik Mall", rating: 4.3, lat: 40.4034, lng: 49.8726 },
+        { name: "20 Yanvar Pet Market", category: "Pet Supplies", address: "Tbilisi Avenue 61, 20 Yanvar", rating: 4.2, lat: 40.4059, lng: 49.8108 },
+      ];
+
+      const categoryColors = {
+        Veterinary: "#0f766e",
+        "24/7 Pharmacy": "#0369a1",
+        Grooming: "#c026d3",
+        "Pet Supplies": "#ca8a04",
+      };
+
+      const filterInactive = "filter-btn rounded-full bg-teal-50 px-3.5 py-1.5 text-sm font-semibold text-teal-900 hover:bg-teal-700 hover:text-white";
+      const filterActive = "filter-btn rounded-full bg-teal-700 px-3.5 py-1.5 text-sm font-semibold text-white";
+
+      let map;
+      let markerLayer;
+      let activeCategory = "All";
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      function showToast(message) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.classList.remove("hidden");
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(() => toast.classList.add("hidden"), 2800);
+      }
+
+      function markerIcon(category) {
+        const color = categoryColors[category] || "#0f766e";
+        return L.divIcon({
+          className: "spot-pin",
+          html: `<span style="background:${color}"></span>`,
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+          popupAnchor: [0, -12],
+        });
+      }
+
+      function popupHtml(spot) {
+        return `
+          <div>
+            <strong>${escapeHtml(spot.name)}</strong>
+            <p class="mt-1 text-sm">${escapeHtml(spot.category)}</p>
+            <p class="text-sm">${escapeHtml(spot.address)}</p>
+            <p class="mt-1 font-bold text-amber-600">★ ${Number(spot.rating).toFixed(1)}</p>
+          </div>
+        `;
+      }
+
+      function renderMarkers() {
+        if (markerLayer) markerLayer.remove();
+        markerLayer = L.layerGroup().addTo(map);
+        spots
+          .filter((spot) => activeCategory === "All" || spot.category === activeCategory)
+          .forEach((spot) => {
+            L.marker([spot.lat, spot.lng], { icon: markerIcon(spot.category) })
+              .bindPopup(popupHtml(spot))
+              .addTo(markerLayer);
+          });
+      }
+
+      function initMap() {
+        map = L.map("map", { scrollWheelZoom: true }).setView(BAKU, 12);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+        renderMarkers();
+        requestAnimationFrame(() => map.invalidateSize());
+      }
+
+      function setActiveFilter(button) {
+        document.querySelectorAll(".filter-btn").forEach((btn) => {
+          btn.className = btn === button ? filterActive : filterInactive;
+        });
+        activeCategory = button.dataset.category;
+        renderMarkers();
+      }
+
+      document.querySelectorAll(".filter-btn").forEach((button) => {
+        button.addEventListener("click", () => setActiveFilter(button));
+      });
+
+      const dialog = document.getElementById("register-modal");
+      const form = document.getElementById("register-form");
+      const errorEl = document.getElementById("register-error");
+
+      document.getElementById("open-register").addEventListener("click", () => {
+        errorEl.classList.add("hidden");
+        dialog.showModal();
+      });
+      document.getElementById("close-register").addEventListener("click", () => dialog.close());
+
+      async function geocodeAddress(address) {
+        const query = `${address}, Baku, Azerbaijan`;
+        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+        try {
+          const response = await fetch(url, { headers: { Accept: "application/json" } });
+          if (response.ok) {
+            const results = await response.json();
+            if (results[0]) return { lat: Number(results[0].lat), lng: Number(results[0].lon) };
+          }
+        } catch {
+          /* nearby Baku fallback */
+        }
+        return {
+          lat: BAKU[0] + (Math.random() - 0.5) * 0.05,
+          lng: BAKU[1] + (Math.random() - 0.5) * 0.07,
+        };
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const data = new FormData(form);
+        const name = String(data.get("name") || "").trim();
+        const category = String(data.get("category") || "").trim();
+        const address = String(data.get("address") || "").trim();
+        const rating = Number(data.get("rating"));
+        if (!name || !category || !address || Number.isNaN(rating)) return;
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        errorEl.classList.add("hidden");
+
+        try {
+          const coords = await geocodeAddress(address);
+          const spot = { name, category, address, rating, ...coords };
+          spots.push(spot);
+          if (activeCategory !== "All" && activeCategory !== category) {
+            const allBtn = document.querySelector('.filter-btn[data-category="All"]');
+            setActiveFilter(allBtn);
+          } else {
+            renderMarkers();
+          }
+          map.setView([spot.lat, spot.lng], 14);
+          L.popup().setLatLng([spot.lat, spot.lng]).setContent(popupHtml(spot)).openOn(map);
+          form.reset();
+          dialog.close();
+          showToast(`${name} added to the map`);
+        } catch (error) {
+          errorEl.textContent = error.message || "Could not add this spot.";
+          errorEl.classList.remove("hidden");
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+
+      document.querySelectorAll(".btn-book").forEach((button) => {
+        button.addEventListener("click", () => {
+          const name = button.closest(".sitter-card").querySelector("h3").textContent;
+          showToast(`Booking request sent to ${name}`);
+        });
+      });
+
+      const widget = document.getElementById("vet-widget");
+      const toggle = document.getElementById("vet-toggle");
+      const panel = document.getElementById("vet-panel");
+      const vetForm = document.getElementById("vet-form");
+      const input = document.getElementById("vet-input");
+      const sendBtn = document.getElementById("vet-send");
+      const messagesEl = document.getElementById("vet-messages");
+      const apiKeyInput = document.getElementById("gemini-api-key");
+      const toggleIcon = document.getElementById("vet-toggle-icon");
+      const toggleClose = document.getElementById("vet-toggle-close");
+      const conversation = [];
+
+      apiKeyInput.value = localStorage.getItem("geminiApiKey") || "";
+      apiKeyInput.addEventListener("input", () => {
+        localStorage.setItem("geminiApiKey", apiKeyInput.value.trim());
+      });
+
+      function setChatOpen(open) {
+        panel.classList.toggle("hidden", !open);
+        panel.classList.toggle("flex", open);
+        panel.hidden = !open;
+        toggleIcon.classList.toggle("hidden", open);
+        toggleClose.classList.toggle("hidden", !open);
+        toggle.setAttribute("aria-expanded", String(open));
+        toggle.setAttribute("aria-label", open ? "Close AI Vet Advisor" : "Open AI Vet Advisor");
+        if (open) input.focus();
+      }
+
+      toggle.addEventListener("click", () => setChatOpen(panel.hidden));
+      document.getElementById("nav-ai-vet").addEventListener("click", (event) => {
+        event.preventDefault();
+        setChatOpen(true);
+      });
+
+      function appendMessage(role, text, isError = false) {
+        const wrap = document.createElement("div");
+        wrap.className = role === "user" ? "max-w-[88%] self-end" : "max-w-[88%] self-start";
+
+        const label = document.createElement("div");
+        label.className = role === "user"
+          ? "mb-1 text-right text-[11px] font-semibold text-slate-500"
+          : "mb-1 text-[11px] font-semibold text-slate-500";
+        label.textContent = role === "user" ? "You" : "AI Vet Advisor";
+
+        const body = document.createElement("div");
+        body.className = isError
+          ? "whitespace-pre-wrap rounded-2xl rounded-bl-sm border border-red-200 bg-red-50 px-3 py-2.5 text-left text-sm leading-relaxed text-red-800"
+          : role === "user"
+            ? "whitespace-pre-wrap rounded-2xl rounded-br-sm bg-teal-700 px-3 py-2.5 text-left text-sm leading-relaxed text-white"
+            : "whitespace-pre-wrap rounded-2xl rounded-bl-sm border border-teal-300 bg-teal-100 px-3 py-2.5 text-left text-sm leading-relaxed text-teal-950";
+        body.textContent = text;
+
+        wrap.append(label, body);
+        messagesEl.appendChild(wrap);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return { root: wrap, body };
+      }
+
+      function appendLoading() {
+        const wrap = document.createElement("div");
+        wrap.className = "max-w-[88%] self-start";
+        wrap.innerHTML = `
+          <div class="mb-1 text-[11px] font-semibold text-slate-500">AI Vet Advisor</div>
+          <div class="flex items-center gap-2 rounded-2xl rounded-bl-sm border border-teal-300 bg-teal-100 px-3 py-2.5 text-sm text-teal-700">
+            <span class="vet-spinner" aria-hidden="true"></span>
+            <span>Analyzing symptoms…</span>
+          </div>
+        `;
+        messagesEl.appendChild(wrap);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return { root: wrap, body: wrap.querySelector("div:last-child") };
+      }
+
+      function extractText(data) {
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        return parts.map((part) => part.text || "").join("");
+      }
+
+      function parseGeminiError(raw, status) {
+        try {
+          const msg = JSON.parse(raw).error?.message;
+          if (msg) return msg;
+        } catch {
+          /* fall through */
+        }
+        if (status === 404) return "That Gemini model is not available on this API key.";
+        if (status === 400 || status === 403) {
+          return "The API key looks invalid or is missing Gemini access. Check it in Google AI Studio.";
+        }
+        return `Gemini request failed (${status}).`;
+      }
+
+      async function generateGeminiReply(apiKey) {
+        const response = await fetch(GEMINI_ENDPOINT + encodeURIComponent(apiKey), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: conversation,
+            generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(parseGeminiError(await response.text(), response.status));
+        }
+
+        const data = await response.json();
+        const full = extractText(data).trim();
+        if (!full) throw new Error("The model returned an empty reply. Try again.");
+        return full;
+      }
+
+      vetForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const text = input.value.trim();
+        if (!text || sendBtn.disabled) return;
+
+        const apiKey = apiKeyInput.value.trim();
+        if (!apiKey) {
+          appendMessage("ai", "Add a Gemini API key from Google AI Studio above, then send your pet’s symptoms again.", true);
+          return;
+        }
+
+        appendMessage("user", text);
+        input.value = "";
+        conversation.push({ role: "user", parts: [{ text }] });
+
+        const loading = appendLoading();
+        sendBtn.disabled = true;
+        input.disabled = true;
+
+        try {
+          const reply = await generateGeminiReply(apiKey);
+          loading.root.remove();
+          appendMessage("ai", reply);
+          conversation.push({ role: "model", parts: [{ text: reply }] });
+        } catch (error) {
+          loading.root.remove();
+          appendMessage("ai", error.message || "Something went wrong while contacting the AI.", true);
+        } finally {
+          sendBtn.disabled = false;
+          input.disabled = false;
+        }
+      });
+
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          vetForm.requestSubmit();
+        }
+      });
+
+      initMap();
+    </script>
+  </body>
+</html>
