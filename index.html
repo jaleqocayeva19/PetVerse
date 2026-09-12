@@ -132,7 +132,7 @@
             <div class="mb-4 grid h-36 place-items-center rounded-xl bg-gradient-to-br from-teal-700 to-teal-400 text-3xl font-extrabold text-white">LN</div>
             <h3 class="text-lg font-bold">Leyla Nasirova</h3>
             <p class="text-sm font-bold text-teal-700">Verified sitter</p>
-            <p class="mt-2 font-bold">₼35 / day</p>
+            <p class="mt-2 font-bold">₼18 / day</p>
             <p class="mb-4 text-amber-500" aria-label="4.9 stars">★★★★★ <span class="text-sm text-slate-500">4.9</span></p>
             <button type="button" class="btn-book w-full rounded-xl bg-teal-700 py-2.5 font-bold text-white hover:bg-teal-800">Book Sitter</button>
           </article>
@@ -140,7 +140,7 @@
             <div class="mb-4 grid h-36 place-items-center rounded-xl bg-gradient-to-br from-sky-700 to-sky-400 text-3xl font-extrabold text-white">RM</div>
             <h3 class="text-lg font-bold">Rashad Mammadov</h3>
             <p class="text-sm font-bold text-teal-700">Verified sitter</p>
-            <p class="mt-2 font-bold">₼40 / day</p>
+            <p class="mt-2 font-bold">₼15 / day</p>
             <p class="mb-4 text-amber-500" aria-label="4.8 stars">★★★★★ <span class="text-sm text-slate-500">4.8</span></p>
             <button type="button" class="btn-book w-full rounded-xl bg-teal-700 py-2.5 font-bold text-white hover:bg-teal-800">Book Sitter</button>
           </article>
@@ -148,7 +148,7 @@
             <div class="mb-4 grid h-36 place-items-center rounded-xl bg-gradient-to-br from-violet-700 to-fuchsia-500 text-3xl font-extrabold text-white">AG</div>
             <h3 class="text-lg font-bold">Aygun Guliyeva</h3>
             <p class="text-sm font-bold text-teal-700">Verified sitter</p>
-            <p class="mt-2 font-bold">₼32 / day</p>
+            <p class="mt-2 font-bold">₼10 / day</p>
             <p class="mb-4 text-amber-500" aria-label="5.0 stars">★★★★★ <span class="text-sm text-slate-500">5.0</span></p>
             <button type="button" class="btn-book w-full rounded-xl bg-teal-700 py-2.5 font-bold text-white hover:bg-teal-800">Book Sitter</button>
           </article>
@@ -245,12 +245,12 @@
     ></script>
     <script>
       const BAKU = [40.4093, 49.8671];
-      const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash-latest"];
+      const GEMINI_MODELS = ["gemini-2.0-flash"];
       const API_KEY = "AQ.Ab8RN6JPgZHBnDS8wHbunIKp2sX2KV9jK16Ssv3s1zexmoySjg";
 
       function geminiGenerateUrl(model) {
-        return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(API_KEY)}`;
-      }
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(API_KEY)}`;
+}
       const SYSTEM_PROMPT =
         "You are a professional veterinary assistant. Analyze the pet symptoms provided by the user, provide immediate emergency advice, estimate the urgency level, and specify which type of specialist veterinarian they should consult. Keep answers concise and helpful.";
 
