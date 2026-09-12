@@ -4,46 +4,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PetVerse - Global Pet Care & AI Vet Advisor</title>
-    
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- Leaflet.js CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+
+    <style>
+        /* Xəritənin düzgün görünməsi üçün açıq hündürlük zənciri.
+           Flex konteynerlərdə "h-full" bəzən 0 hündürlüyə düşür,
+           ona görə html/body/main-a explicit hündürlük veririk. */
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+            min-height: 400px; /* mobil üçün ehtiyat hündürlük */
+        }
+    </style>
 </head>
-<body class="bg-gray-50 h-screen flex flex-col">
+<body class="bg-gray-50 flex flex-col" style="height:100vh;">
 
     <!-- Header / Navbar -->
-    <header class="bg-emerald-600 text-white p-4 shadow-md flex justify-between items-center">
+    <header class="bg-emerald-600 text-white p-4 shadow-md flex justify-between items-center flex-shrink-0">
         <h1 class="text-xl font-bold">🐾 PetVerse</h1>
         <span class="text-sm bg-emerald-700 px-3 py-1 rounded-full">AnimalHack 2026</span>
     </header>
 
     <!-- Main Content Grid -->
-    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
-        
+    <main class="flex-1 flex flex-col md:flex-row" style="min-height:0;">
+
         <!-- Leaflet Map Container (Left Side) -->
-        <div id="map" class="w-full md:w-2/3 h-96 md:h-full z-10"></div>
+        <div class="w-full md:w-2/3 flex-shrink-0" style="height:400px; min-height:0;">
+            <div id="map"></div>
+        </div>
 
         <!-- AI Vet Advisor Chatbot Panel (Right Side) -->
-        <div class="w-full md:w-1/3 h-full flex flex-col bg-white border-l border-gray-200 shadow-lg">
-            <div class="p-4 bg-emerald-50 border-b border-gray-200">
+        <div class="w-full md:w-1/3 flex flex-col bg-white border-l border-gray-200 shadow-lg" style="min-height:0; flex:1;">
+            <div class="p-4 bg-emerald-50 border-b border-gray-200 flex-shrink-0">
                 <h2 class="font-bold text-gray-800">AI Vet Advisor</h2>
                 <p class="text-xs text-gray-500">Describe symptoms for guidance</p>
             </div>
-            
+
             <!-- Chat Messages Area -->
-            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 text-sm">
+            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 text-sm" style="min-height:0;">
                 <div class="bg-emerald-100 p-3 rounded-lg text-gray-800">
-                    Hello! Tell me your pet’s species, age, and symptoms. I will estimate urgency, share immediate care steps, and suggest the right veterinary specialist.
+                    Hello! Tell me your pet's species, age, and symptoms. I will estimate urgency, share immediate care steps, and suggest the right veterinary specialist.
                 </div>
             </div>
 
             <!-- Chat Input Area -->
-            <div class="p-3 border-t border-gray-200 flex gap-2">
-                <input type="text" id="user-input" placeholder="e.g. 3-year-old cat vomiting..." 
+            <div class="p-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
+                <input type="text" id="user-input" placeholder="e.g. 3-year-old cat vomiting..."
                        class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
-                <button onclick="sendMessage()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
+                <button id="send-btn" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
                     Send
                 </button>
             </div>
@@ -62,29 +79,55 @@
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
+        // Xəritənin konteyner ölçüsü sonradan dəyişəndə (məs. şəkil yükləndikdə,
+        // yaxud pəncərə ölçüsü dəyişəndə) Leaflet-in özünü yenidən ölçməsi üçün.
+        window.addEventListener('load', () => map.invalidateSize());
+        window.addEventListener('resize', () => map.invalidateSize());
+        setTimeout(() => map.invalidateSize(), 300);
+
         // 2. Gemini API Configuration
-        const API_KEY = "AIzaSy_BURAYA_OZ_ACARINI_YAZ"; // AI Studio-dan aldığın AIzaSy açarını buraya yaz
-        const GEMINI_MODELS = ["gemini-2.0-flash"];
+        // AŞAĞIDAKI SƏTRİ AI STUDIO-DAN ALDIĞINIZ HƏQİQİ AÇARLA ƏVƏZ EDİN.
+        // Yeni açarlar "AQ.Ab..." formatında gəlir, "AIzaSy..." deyil.
+        const API_KEY = "AQ.Ab8RN6IPmXifGiye3tdYznlKmint_p4xbjCDq_jffLgaX7w3_A"; // <-- Məs: "AQ.Ab8xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        const GEMINI_MODEL = "gemini-2.0-flash";
         const SYSTEM_PROMPT = "You are an expert AI Veterinary Advisor. Provide helpful, structured, and empathetic guidance for pet health issues, estimate urgency, and suggest veterinary steps.";
 
         let conversation = [];
 
+        // İstifadəçi mətnini təhlükəsiz şəkildə HTML-ə əlavə etmək üçün (XSS qorunması)
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         async function sendMessage() {
             const inputField = document.getElementById('user-input');
             const chatMessages = document.getElementById('chat-messages');
+            const sendBtn = document.getElementById('send-btn');
             const userText = inputField.value.trim();
             if (!userText) return;
 
-            // Show User Message
-            chatMessages.innerHTML += `<div class="text-right"><span class="inline-block bg-emerald-600 text-white p-3 rounded-lg">${userText}</span></div>`;
+            // API açarının doldurulub-doldurulmadığını yoxla
+            if (!API_KEY || API_KEY === "BURAYA_OZ_ACARINI_YAZ") {
+                chatMessages.innerHTML += `<div class="bg-red-100 text-red-700 p-3 rounded-lg">Xəta: API açarı təyin edilməyib. Kodda API_KEY sətrini doldurun.</div>`;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                return;
+            }
+
+            // Show User Message (escape edilmiş şəkildə)
+            chatMessages.innerHTML += `<div class="text-right"><span class="inline-block bg-emerald-600 text-white p-3 rounded-lg">${escapeHtml(userText)}</span></div>`;
             inputField.value = '';
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
             conversation.push({ role: "user", parts: [{ text: userText }] });
 
+            // Göndərilərkən düyməni müvəqqəti deaktiv et
+            sendBtn.disabled = true;
+            sendBtn.textContent = "...";
+
             try {
-                const model = GEMINI_MODELS[0];
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`;
 
                 const response = await fetch(url, {
                     method: "POST",
@@ -102,17 +145,28 @@
                 }
 
                 const data = await response.json();
-                const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Aİ-dən cavab alınmadı.";
+                const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "AI-dən cavab alınmadı.";
 
-                // Show AI Response
-                chatMessages.innerHTML += `<div class="bg-gray-100 p-3 rounded-lg text-gray-800">${aiText}</div>`;
+                // Show AI Response (escape edilmiş şəkildə)
+                chatMessages.innerHTML += `<div class="bg-gray-100 p-3 rounded-lg text-gray-800">${escapeHtml(aiText)}</div>`;
                 conversation.push({ role: "model", parts: [{ text: aiText }] });
 
             } catch (error) {
-                chatMessages.innerHTML += `<div class="bg-red-100 text-red-700 p-3 rounded-lg">Xəta: ${error.message}</div>`;
+                chatMessages.innerHTML += `<div class="bg-red-100 text-red-700 p-3 rounded-lg">Xəta: ${escapeHtml(error.message)}</div>`;
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = "Send";
             }
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
+
+        // Düymə klikini bağla
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+
+        // Enter düyməsi ilə mesaj göndər
+        document.getElementById('user-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendMessage();
+        });
     </script>
 </body>
 </html>
