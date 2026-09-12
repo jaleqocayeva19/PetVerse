@@ -244,9 +244,35 @@
       crossorigin=""
     ></script>
     <script>
-      const BAKU = [40.4093, 49.8671];
-      const GEMINI_MODELS = ["gemini-2.0-flash"];
-      const API_KEY ="AIzaSy_AQ.Ab8RN6KukFt_PxIUaIMur1AnzhJdo_MuTP_X1mYEuNGNymngSw";
+      
+const API_KEY = "AQ.Ab8RN6LmcEraJNvpu_QmqiWBX9XrfD19A0at4WaSH7fkpqO_Tg";
+
+async function generateGeminiReply() {
+  const model = "gemini-2.0-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: conversation,
+      generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || `API xətası (${response.status})`);
+  }
+
+  const data = await response.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("Aİ-dən boş cavab qayıtdı.");
+  return text;
+}
 
       function geminiGenerateUrl(model) {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(API_KEY)}`;
