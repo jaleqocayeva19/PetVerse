@@ -201,17 +201,6 @@
           <p class="mt-0.5 text-xs text-white/90">Describe symptoms for guidance</p>
         </header>
 
-        <div class="flex flex-col gap-1 border-b border-slate-200 bg-slate-50 px-3 py-2">
-          <label for="gemini-api-key" class="text-[11px] font-semibold text-slate-500">Gemini API key</label>
-          <input
-            type="password"
-            id="gemini-api-key"
-            autocomplete="off"
-            placeholder="Paste your Google AI Studio key"
-            class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-          />
-        </div>
-
         <div id="vet-messages" class="flex flex-1 flex-col gap-2.5 overflow-y-auto bg-slate-50 p-3" role="log" aria-live="polite">
           <div class="max-w-[88%] self-start">
             <div class="mb-1 text-[11px] font-semibold text-slate-500">AI Vet Advisor</div>
@@ -256,8 +245,12 @@
     ></script>
     <script>
       const BAKU = [40.4093, 49.8671];
-      const GEMINI_ENDPOINT =
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=";
+      const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash-latest"];
+      const API_KEY = "AQ.Ab8RN6JPgZHBnDS8wHbunIKp2sX2KV9jK16Ssv3s1zexmoySjg";
+
+      function geminiGenerateUrl(model) {
+        return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(API_KEY)}`;
+      }
       const SYSTEM_PROMPT =
         "You are a professional veterinary assistant. Analyze the pet symptoms provided by the user, provide immediate emergency advice, estimate the urgency level, and specify which type of specialist veterinarian they should consult. Keep answers concise and helpful.";
 
@@ -338,9 +331,9 @@
 
       function initMap() {
         map = L.map("map", { scrollWheelZoom: true }).setView(BAKU, 12);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
           maxZoom: 19,
-          attribution: "&copy; OpenStreetMap contributors",
+          attribution: "&copy; OpenStreetMap &copy; CARTO",
         }).addTo(map);
         renderMarkers();
         requestAnimationFrame(() => map.invalidateSize());
@@ -436,15 +429,9 @@
       const input = document.getElementById("vet-input");
       const sendBtn = document.getElementById("vet-send");
       const messagesEl = document.getElementById("vet-messages");
-      const apiKeyInput = document.getElementById("gemini-api-key");
       const toggleIcon = document.getElementById("vet-toggle-icon");
       const toggleClose = document.getElementById("vet-toggle-close");
       const conversation = [];
-
-      apiKeyInput.value = localStorage.getItem("geminiApiKey") || "";
-      apiKeyInput.addEventListener("input", () => {
-        localStorage.setItem("geminiApiKey", apiKeyInput.value.trim());
-      });
 
       function setChatOpen(open) {
         panel.classList.toggle("hidden", !open);
@@ -521,37 +508,44 @@
         return `Gemini request failed (${status}).`;
       }
 
-      async function generateGeminiReply(apiKey) {
-        const response = await fetch(GEMINI_ENDPOINT + encodeURIComponent(apiKey), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-            contents: conversation,
-            generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
-          }),
+      async function generateGeminiReply() {
+        let lastError = "Gemini request failed.";
+        const payload = JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: conversation,
+          generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
         });
 
-        if (!response.ok) {
-          throw new Error(parseGeminiError(await response.text(), response.status));
+        for (let i = 0; i < GEMINI_MODELS.length; i++) {
+          const model = GEMINI_MODELS[i];
+          const response = await fetch(geminiGenerateUrl(model), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: payload,
+          });
+
+          if (!response.ok) {
+            lastError = parseGeminiError(await response.text(), response.status);
+            const canFallback =
+              i < GEMINI_MODELS.length - 1 &&
+              (response.status === 400 || response.status === 404);
+            if (canFallback) continue;
+            throw new Error(lastError);
+          }
+
+          const data = await response.json();
+          const full = extractText(data).trim();
+          if (full) return full;
+          lastError = "The model returned an empty reply. Try again.";
         }
 
-        const data = await response.json();
-        const full = extractText(data).trim();
-        if (!full) throw new Error("The model returned an empty reply. Try again.");
-        return full;
+        throw new Error(lastError);
       }
 
       vetForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const text = input.value.trim();
         if (!text || sendBtn.disabled) return;
-
-        const apiKey = apiKeyInput.value.trim();
-        if (!apiKey) {
-          appendMessage("ai", "Add a Gemini API key from Google AI Studio above, then send your pet’s symptoms again.", true);
-          return;
-        }
 
         appendMessage("user", text);
         input.value = "";
@@ -562,7 +556,7 @@
         input.disabled = true;
 
         try {
-          const reply = await generateGeminiReply(apiKey);
+          const reply = await generateGeminiReply();
           loading.root.remove();
           appendMessage("ai", reply);
           conversation.push({ role: "model", parts: [{ text: reply }] });
@@ -582,7 +576,9 @@
         }
       });
 
-      initMap();
+      document.addEventListener("DOMContentLoaded", () => {
+        initMap();
+      });
     </script>
   </body>
 </html>
